@@ -14,7 +14,8 @@ $database = new Database();
 $db = $database->getConnection();
 
 $produit = new Produit($db);
-$products = $produit->read();
+$result = $produit->read();
+$products = $result->fetchAll(PDO::FETCH_ASSOC);
 
 // Filtrer par catégorie si spécifié
 $category = isset($_GET['category']) ? $_GET['category'] : '';
@@ -96,7 +97,7 @@ $search = isset($_GET['search']) ? $_GET['search'] : '';
             <div class="filters">
                 <div class="filter-group">
                     <label>Trier par:</label>
-                    <select class="filter-select">
+                    <select class="filter-select" id="sort-select">
                         <option value="newest">Nouveautés</option>
                         <option value="price-asc">Prix croissant</option>
                         <option value="price-desc">Prix décroissant</option>
@@ -116,6 +117,34 @@ $search = isset($_GET['search']) ? $_GET['search'] : '';
                 </div>
             </div>
 
+            <!-- Products Grid -->
+            <?php if (count($products) > 0): ?>
+            <div class="products-grid">
+                <?php foreach ($products as $product): ?>
+                <div class="product-card" data-id="<?php echo $product['id']; ?>">
+                    <div class="product-image-container">
+                        <?php if (!empty($product['image'])): ?>
+                        <img src="<?php echo $product['image']; ?>" alt="<?php echo $product['nom']; ?>" class="product-image">
+                        <?php else: ?>
+                        <img src="https://via.placeholder.com/300x300?text=Pas+d'image" alt="<?php echo $product['nom']; ?>" class="product-image">
+                        <?php endif; ?>
+                    </div>
+                    <div class="product-info">
+                        <h3 class="product-title"><?php echo $product['nom']; ?></h3>
+                        <div class="product-price"><?php echo $product['prix']; ?> DH</div>
+                        <div class="product-buttons">
+                            <button class="add-to-cart-btn">
+                                <i class="fas fa-cart-plus"></i> Panier
+                            </button>
+                            <a href="checkout.php?product_id=<?php echo $product['id']; ?>" class="buy-now-btn">
+                                <i class="fas fa-bolt"></i> Acheter
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php else: ?>
             <!-- Empty Products State -->
             <div class="empty-products">
                 <div class="empty-products-icon">
@@ -136,10 +165,23 @@ $search = isset($_GET['search']) ? $_GET['search'] : '';
                     <?php if ($search): ?>
                         Essayez avec d'autres mots-clés ou parcourez nos catégories.
                     <?php else: ?>
-                        Nous n'avons pas encore de produits dans cette catégorie. Veuillez revenir plus tard ou essayer une autre catégorie.
+                        Nous n'avons pas encore de produits dans cette catégorie. Veuillez revenir plus tard.
                     <?php endif; ?>
                 </p>
             </div>
+            <?php endif; ?>
+            
+            <!-- Pagination -->
+            <?php if (count($products) > 12): ?>
+            <div class="pagination">
+                <a href="#" class="page-link active">1</a>
+                <a href="#" class="page-link">2</a>
+                <a href="#" class="page-link">3</a>
+                <a href="#" class="page-link next">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+            <?php endif; ?>
         </div>
     </section>
 
@@ -184,6 +226,70 @@ $search = isset($_GET['search']) ? $_GET['search'] : '';
     <script>
     document.querySelector('.menu-icon').addEventListener('click', function() {
         document.querySelector('.nav-links').classList.toggle('active');
+    });
+    
+    // Add to cart functionality
+    document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const productCard = this.closest('.product-card');
+            const productId = productCard.getAttribute('data-id');
+            const productName = productCard.querySelector('.product-title').textContent;
+            const productPrice = parseFloat(productCard.querySelector('.product-price').textContent.replace(' DH', ''));
+            const productImage = productCard.querySelector('.product-image').src;
+            const cartCount = document.querySelector('.cart-count');
+            
+            // Récupérer le panier actuel du localStorage ou créer un nouveau panier vide
+            let cart = JSON.parse(localStorage.getItem('cart')) || [];
+            
+            // Vérifier si le produit existe déjà dans le panier
+            const existingProductIndex = cart.findIndex(item => item.id === productId);
+            
+            if (existingProductIndex !== -1) {
+                // Si le produit existe, incrémenter la quantité
+                cart[existingProductIndex].quantity += 1;
+            } else {
+                // Sinon, ajouter le nouveau produit au panier
+                cart.push({
+                    id: productId,
+                    name: productName,
+                    price: productPrice,
+                    image: productImage,
+                    quantity: 1
+                });
+            }
+            
+            // Sauvegarder le panier mis à jour dans localStorage
+            localStorage.setItem('cart', JSON.stringify(cart));
+            
+            // Mettre à jour le compteur du panier
+            const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+            cartCount.textContent = totalItems;
+            
+            // Animation effect
+            button.classList.add('added');
+            setTimeout(() => {
+                button.classList.remove('added');
+            }, 1000);
+            
+            alert('Produit ajouté au panier !');
+        });
+    });
+    
+    // Mettre à jour le compteur du panier au chargement de la page
+    function updateCartCount() {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+        document.querySelector('.cart-count').textContent = totalItems;
+    }
+    
+    document.addEventListener('DOMContentLoaded', updateCartCount);
+    
+    // Sorting functionality
+    document.getElementById('sort-select').addEventListener('change', function() {
+        const sortValue = this.value;
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('sort', sortValue);
+        window.location.href = currentUrl.toString();
     });
     </script>
 </body>

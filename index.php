@@ -112,6 +112,16 @@ $products = $produit->read();
     document.querySelector('.menu-icon').addEventListener('click', function() {
         document.querySelector('.nav-links').classList.toggle('active');
     });
+    
+    // Fonction pour mettre à jour le compteur du panier
+    function updateCartCount() {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+        document.querySelector('.cart-count').textContent = totalItems;
+    }
+    
+    // Mettre à jour le compteur au chargement de la page
+    document.addEventListener('DOMContentLoaded', updateCartCount);
     </script>
 </body>
 </html> 

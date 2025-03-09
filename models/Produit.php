@@ -68,5 +68,17 @@ class Produit {
         }
         return false;
     }
+
+    public function readOne() {
+        $query = "SELECT * FROM " . $this->table_name . " WHERE id = :id";
+        $stmt = $this->conn->prepare($query);
+        
+        $stmt->bindParam(":id", $this->id);
+        $stmt->execute();
+        
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $row;
+    }
 }
 ?> 

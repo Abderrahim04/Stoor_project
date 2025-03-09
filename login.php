@@ -17,13 +17,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($email) || empty($password)) {
         $error = "Tous les champs sont obligatoires";
     } else {
-        $user_id = $client->login($email, $password);
-        if ($user_id) {
-            $_SESSION['user_id'] = $user_id;
-            header("Location: index.php");
+        // Vérifier si c'est l'admin
+        if ($email === 'admin@admin.com' && $password === 'admin') {
+            $_SESSION['user_id'] = 1; // ID fictif pour l'admin
+            $_SESSION['is_admin'] = true;
+            header("Location: indexadmin.php");
             exit();
         } else {
-            $error = "Email ou mot de passe incorrect";
+            // Sinon, vérifier si c'est un client normal
+            $user_id = $client->login($email, $password);
+            if ($user_id) {
+                $_SESSION['user_id'] = $user_id;
+                $_SESSION['is_admin'] = false;
+                header("Location: index.php");
+                exit();
+            } else {
+                $error = "Email ou mot de passe incorrect";
+            }
         }
     }
 }

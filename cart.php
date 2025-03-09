@@ -69,7 +69,7 @@ require_once 'config/database.php';
                 <div class="cart-items">
                     <h2>Articles dans votre panier (0)</h2>
                     
-                    <div class="empty-cart">
+                    <div class="empty-cart" id="empty-cart">
                         <div class="empty-cart-icon">
                             <i class="fas fa-shopping-cart"></i>
                         </div>
@@ -78,6 +78,29 @@ require_once 'config/database.php';
                         <a href="products.php" class="continue-shopping-btn">
                             <i class="fas fa-arrow-left"></i> Commencer vos achats
                         </a>
+                    </div>
+                    
+                    <div id="cart-items-container" style="display: none;">
+                        <div class="cart-header">
+                            <span class="header-product">Produit</span>
+                            <span class="header-price">Prix</span>
+                            <span class="header-quantity">Quantité</span>
+                            <span class="header-total">Total</span>
+                            <span class="header-action"></span>
+                        </div>
+                        
+                        <div id="cart-items-list">
+                            <!-- Les produits du panier seront ajoutés ici dynamiquement -->
+                        </div>
+                        
+                        <div class="cart-actions">
+                            <a href="products.php" class="continue-shopping-btn">
+                                <i class="fas fa-arrow-left"></i> Continuer vos achats
+                            </a>
+                            <button class="clear-cart" id="clear-cart-btn">
+                                <i class="fas fa-trash"></i> Vider le panier
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
@@ -166,65 +189,201 @@ require_once 'config/database.php';
         document.querySelector('.nav-links').classList.toggle('active');
     });
     
-    // Cart functionality
-    document.querySelectorAll('.quantity-btn.plus').forEach(button => {
-        button.addEventListener('click', function() {
-            const input = this.parentNode.querySelector('.quantity-input');
-            input.value = parseInt(input.value) + 1;
-            updateItemTotal(this);
-            updateCartTotal();
-        });
-    });
-    
-    document.querySelectorAll('.quantity-btn.minus').forEach(button => {
-        button.addEventListener('click', function() {
-            const input = this.parentNode.querySelector('.quantity-input');
-            if (parseInt(input.value) > 1) {
-                input.value = parseInt(input.value) - 1;
-                updateItemTotal(this);
-                updateCartTotal();
-            }
-        });
-    });
-    
-    document.querySelectorAll('.remove-item').forEach(button => {
-        button.addEventListener('click', function() {
-            this.closest('.cart-item').remove();
-            updateCartTotal();
-            updateCartCount();
-        });
-    });
-    
-    document.querySelector('.clear-cart').addEventListener('click', function() {
-        document.querySelectorAll('.cart-item').forEach(item => {
-            item.remove();
-        });
+    // Fonction pour charger le panier depuis localStorage
+    function loadCart() {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const cartItemsList = document.getElementById('cart-items-list');
+        const emptyCart = document.getElementById('empty-cart');
+        const cartItemsContainer = document.getElementById('cart-items-container');
+        const checkoutBtn = document.querySelector('.checkout-btn');
+        const promoCodeInput = document.querySelector('.promo-code input');
+        const promoCodeBtn = document.querySelector('.promo-code button');
+        
+        // Mettre à jour le compteur du panier
+        const cartCount = document.querySelector('.cart-count');
+        const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+        cartCount.textContent = totalItems;
+        
+        // Mettre à jour le titre du panier
+        document.querySelector('.cart-items h2').textContent = `Articles dans votre panier (${totalItems})`;
+        
+        // Vider la liste des produits
+        cartItemsList.innerHTML = '';
+        
+        if (cart.length === 0) {
+            // Si le panier est vide, afficher le message approprié
+            emptyCart.style.display = 'block';
+            cartItemsContainer.style.display = 'none';
+            checkoutBtn.disabled = true;
+            promoCodeInput.disabled = true;
+            promoCodeBtn.disabled = true;
+        } else {
+            // Si le panier a des produits, les afficher
+            emptyCart.style.display = 'none';
+            cartItemsContainer.style.display = 'block';
+            checkoutBtn.disabled = false;
+            promoCodeInput.disabled = false;
+            promoCodeBtn.disabled = false;
+            
+            // Ajouter chaque produit à la liste
+            cart.forEach((item, index) => {
+                const cartItem = document.createElement('div');
+                cartItem.className = 'cart-item';
+                cartItem.dataset.id = item.id;
+                cartItem.dataset.index = index;
+                
+                cartItem.innerHTML = `
+                    <div class="item-image">
+                        <img src="${item.image}" alt="${item.name}">
+                    </div>
+                    <div class="item-details">
+                        <h3>${item.name}</h3>
+                    </div>
+                    <div class="item-price">${item.price} DH</div>
+                    <div class="quantity-selector">
+                        <button class="quantity-btn minus"><i class="fas fa-minus"></i></button>
+                        <input type="number" value="${item.quantity}" min="1" class="quantity-input">
+                        <button class="quantity-btn plus"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div class="item-total">${(item.price * item.quantity).toFixed(2)} DH</div>
+                    <div class="item-actions">
+                        <button class="remove-item"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                
+                cartItemsList.appendChild(cartItem);
+            });
+            
+            // Ajouter les event listeners pour les boutons de quantité et de suppression
+            addCartItemEventListeners();
+        }
+        
+        // Mettre à jour le total du panier
         updateCartTotal();
-        updateCartCount();
-    });
-    
-    function updateItemTotal(element) {
-        const item = element.closest('.cart-item');
-        const price = parseInt(item.querySelector('.item-price').textContent);
-        const quantity = parseInt(item.querySelector('.quantity-input').value);
-        item.querySelector('.item-total').textContent = (price * quantity) + ' DH';
     }
     
-    function updateCartTotal() {
-        let total = 0;
-        document.querySelectorAll('.item-total').forEach(element => {
-            total += parseInt(element.textContent);
+    // Fonction pour ajouter des event listeners aux éléments du panier
+    function addCartItemEventListeners() {
+        // Boutons pour augmenter la quantité
+        document.querySelectorAll('.quantity-btn.plus').forEach(button => {
+            button.addEventListener('click', function() {
+                const input = this.parentNode.querySelector('.quantity-input');
+                const cartItem = this.closest('.cart-item');
+                const index = parseInt(cartItem.dataset.index);
+                
+                input.value = parseInt(input.value) + 1;
+                updateCartItem(index, parseInt(input.value));
+            });
         });
         
-        document.querySelector('.summary-row.total span:last-child').textContent = total + ' DH';
-        document.querySelector('.summary-row:first-child span:last-child').textContent = total + ' DH';
+        // Boutons pour diminuer la quantité
+        document.querySelectorAll('.quantity-btn.minus').forEach(button => {
+            button.addEventListener('click', function() {
+                const input = this.parentNode.querySelector('.quantity-input');
+                const cartItem = this.closest('.cart-item');
+                const index = parseInt(cartItem.dataset.index);
+                
+                if (parseInt(input.value) > 1) {
+                    input.value = parseInt(input.value) - 1;
+                    updateCartItem(index, parseInt(input.value));
+                }
+            });
+        });
+        
+        // Champ de quantité qui change manuellement
+        document.querySelectorAll('.quantity-input').forEach(input => {
+            input.addEventListener('change', function() {
+                const cartItem = this.closest('.cart-item');
+                const index = parseInt(cartItem.dataset.index);
+                
+                // S'assurer que la quantité est au moins 1
+                if (parseInt(this.value) < 1) {
+                    this.value = 1;
+                }
+                
+                updateCartItem(index, parseInt(this.value));
+            });
+        });
+        
+        // Boutons pour supprimer un produit
+        document.querySelectorAll('.remove-item').forEach(button => {
+            button.addEventListener('click', function() {
+                const cartItem = this.closest('.cart-item');
+                const index = parseInt(cartItem.dataset.index);
+                
+                removeCartItem(index);
+            });
+        });
     }
     
-    function updateCartCount() {
-        const count = document.querySelectorAll('.cart-item').length;
-        document.querySelector('.cart-count').textContent = count;
-        document.querySelector('.cart-items h2').textContent = `Articles dans votre panier (${count})`;
+    // Fonction pour mettre à jour un produit dans le panier
+    function updateCartItem(index, quantity) {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        
+        if (index >= 0 && index < cart.length) {
+            cart[index].quantity = quantity;
+            localStorage.setItem('cart', JSON.stringify(cart));
+            
+            // Mettre à jour le total du produit
+            const itemPrice = cart[index].price;
+            const itemTotal = (itemPrice * quantity).toFixed(2);
+            document.querySelector(`.cart-item[data-index="${index}"] .item-total`).textContent = `${itemTotal} DH`;
+            
+            // Mettre à jour le total du panier
+            updateCartTotal();
+            
+            // Mettre à jour le compteur du panier
+            updateCartCount();
+        }
     }
+    
+    // Fonction pour supprimer un produit du panier
+    function removeCartItem(index) {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        
+        if (index >= 0 && index < cart.length) {
+            cart.splice(index, 1);
+            localStorage.setItem('cart', JSON.stringify(cart));
+            
+            // Recharger le panier
+            loadCart();
+        }
+    }
+    
+    // Fonction pour vider le panier
+    function clearCart() {
+        localStorage.removeItem('cart');
+        loadCart();
+    }
+    
+    // Fonction pour mettre à jour le total du panier
+    function updateCartTotal() {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        
+        document.querySelector('.summary-row.total span:last-child').textContent = `${total.toFixed(2)} DH`;
+        document.querySelector('.summary-row:first-child span:last-child').textContent = `${total.toFixed(2)} DH`;
+    }
+    
+    // Fonction pour mettre à jour le compteur de produits
+    function updateCartCount() {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+        
+        document.querySelector('.cart-count').textContent = totalItems;
+        document.querySelector('.cart-items h2').textContent = `Articles dans votre panier (${totalItems})`;
+    }
+    
+    // Event listener pour le bouton "Vider le panier"
+    document.getElementById('clear-cart-btn').addEventListener('click', clearCart);
+    
+    // Event listener pour le bouton "Procéder au paiement"
+    document.querySelector('.checkout-btn').addEventListener('click', function() {
+        window.location.href = 'checkout.php';
+    });
+    
+    // Charger le panier au chargement de la page
+    document.addEventListener('DOMContentLoaded', loadCart);
     </script>
 </body>
 </html> 

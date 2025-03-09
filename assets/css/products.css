@@ -375,4 +375,61 @@
 
 .search-button i {
     font-size: 18px;
+}
+
+/* Product Buttons */
+.product-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.add-to-cart-btn, .buy-now-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.add-to-cart-btn {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.add-to-cart-btn:hover {
+    background-color: #45a049;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.buy-now-btn {
+    background-color: #ff9800;
+    color: white;
+    text-decoration: none;
+}
+
+.buy-now-btn:hover {
+    background-color: #f57c00;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.add-to-cart-btn.added {
+    animation: added 1s ease;
+}
+
+@keyframes added {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
 } 

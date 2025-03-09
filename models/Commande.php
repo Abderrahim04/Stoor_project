@@ -33,7 +33,7 @@ class Commande {
     }
 
     public function read() {
-        $query = "SELECT c.*, cl.nom as client_nom, cl.prenom as client_prenom 
+        $query = "SELECT c.*, u.nom as client_nom, u.prenom as client_prenom 
                 FROM " . $this->table_name . " c
                 INNER JOIN clients cl ON c.client_id = cl.id
                 INNER JOIN utilisateurs u ON cl.id = u.id";
@@ -97,7 +97,7 @@ class Commande {
     }
 
     public function getProducts() {
-        $query = "SELECT p.*, cp.quantite 
+        $query = "SELECT p.*, cp.quantite, (p.prix * cp.quantite) as total_prix
                 FROM produits p
                 INNER JOIN commande_produit cp ON p.id = cp.produit_id
                 WHERE cp.commande_id = :commande_id";
@@ -107,6 +107,31 @@ class Commande {
         $stmt->execute();
         
         return $stmt;
+    }
+
+    public function readOne() {
+        $query = "SELECT c.*, u.nom as client_nom, u.prenom as client_prenom 
+                FROM " . $this->table_name . " c
+                INNER JOIN clients cl ON c.client_id = cl.id
+                INNER JOIN utilisateurs u ON cl.id = u.id
+                WHERE c.id = :id";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(":id", $this->id);
+        $stmt->execute();
+        
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    public function getTotalAmount() {
+        $total = 0;
+        $products = $this->getProducts();
+        
+        while ($product = $products->fetch(PDO::FETCH_ASSOC)) {
+            $total += $product['total_prix'];
+        }
+        
+        return $total;
     }
 }
 ?> 
